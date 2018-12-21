@@ -29,7 +29,7 @@
 from sys import exit, argv
 from subprocess import Popen, PIPE
 from re import findall, match, sub, compile
-import getopt
+import argparse
 import os
 from socket import gethostname
 import pdb
@@ -91,11 +91,7 @@ where options are:
             file with the output of prtdiag -Dv
 	--explorer <path>
 
-    -s|--short list, list only devlink and storage LUN
-    
-    -z|--zpool print LUN of all zpools
-
-    -x|--hex print LUN in hex like luxadm
+    -s|--short list, list only devlink and WWN's
 """
 
 class HBA(object):
@@ -155,7 +151,7 @@ class HBA(object):
 
     def printVal(self):
          if not HBA.headprinted and not printShort:
-             print "%2s %3s %-16s %-48s %-16s %-16s %-12s %-8s %-8s %-8s" % ('id','PCI','devlink','devpath','port WWN','nodeWWM','SN','Vendor','PROD','model')
+             print "%3s %3s %-16s %-48s %-16s %-16s %-12s %-8s %-8s %-8s %-8s" % ('id','PCI','devlink','devpath','port WWN','nodeWWM','Type','SN','Vendor','PROD','model')
              HBA.headprinted = True
          elif not HBA.headprinted and not printShort:
              print "devlink, LUN list"
@@ -274,43 +270,19 @@ def openExplo(explorer):
 
 ### MAIN PROGRAM ###
 if __name__ == '__main__':
-    try:
-        opts, args = getopt.getopt(argv[1:], '?hsxf:g:',
-            ['help', 'short', 'hex', 'file=', 'explorer='])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-s","--short", help="PCI Slot, print only device link and WWN", action="store_true")
+    parser.add_argument("-f","--file", dest="filename", help="provide a 'prtconf -vD' file")
+    parser.add_argument("-g","--explorer", dest="explorer", help="provide data in packed or unpacked explorer ")
+    args = parser.parse_args()
 
-    except getopt.GetoptError, e:
-        usage()
-        exit(1)
-    
-    explorer = None
-    for o, a in opts:
-        if o in ('-h', '-?', '--help'):
-            usage()
-            exit(0)
-        elif o in ('-x', '--hex'):
-            printHex = True
-        elif o in ('-s', '--short'):
-            printShort = True
-        elif o in ('-z', '--zpool'):
-            discovZpool = True
-        elif o in ('-f', '--file'):
-            filename = a
-        elif o in ('-g', '--explorer'):
-            explorer = a
-
-    zpools = []
-    
-
-    if explorer:
-        if filename:
-            print "WARNING: ignore %s because use explorer output" % filename
-        fl = openExplo(explorer)
+    if args.explorer:
+        if args.filename:
+            print "WARNING: ignore %s because use explorer output" % args.filename
+        fl = openExplo(args.explorer)
     else:
-        if filename:
-            if discovZpool:
-                print "ERROR: would use ZPOOL data of %s" % gethostname()
-                exit(2)
-            fl = open(filename)
+        if args.filename:
+            fl = open(args.filename)
         else:
             fl = Popen(['/usr/sbin/prtconf','-Dv'],stdout=PIPE).stdout
         
